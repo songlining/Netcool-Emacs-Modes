@@ -116,7 +116,7 @@
   `(
     (,(regexp-opt '("while" "if" "else" "elseif") 'words) . font-lock-keyword-face)
     (,(regexp-opt policy-keywords 'words) . font-lock-builtin-face)
-    ("\\([Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn]\\)\s+\\(\\w+\\).*(.*)" ;; (REGEXP (N1 FACE1) (N2 FACE2) (N3 FACE3) …)
+    ("\\(function\\)\s+\\(\\w+\\).*(.*)" ;; (REGEXP (N1 FACE1) (N2 FACE2) (N3 FACE3) …)
      (1 font-lock-keyword-face) 
      (2 font-lock-function-name-face))
     ("\\(\\w+\\)(.*?)" 1 font-lock-function-name-face)

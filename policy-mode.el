@@ -142,7 +142,7 @@
   (if (bobp)
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
-      (if (looking-at "^[ \t]*}")
+      (if (looking-at ".*}[ \t]*\\(\/\/.*\\)*$")
 	  (progn
 	    (save-excursion
 	      (forward-line -1)
@@ -152,7 +152,7 @@
 	(save-excursion
 	  (while not-indented ; Iterate backwards until we find an indentation hint
 	    (forward-line -1)
-	    (if (looking-at "^[ \t]*}[ \t]*$") ; This hint indicates that we need to indent at the level of the END_ token
+	    (if (looking-at ".*}[ \t]*\\(\/\/.*\\)*$") ; This hint indicates that we need to indent at the level of the END_ token
 		(progn
 		  (setq cur-indent (current-indentation))
 		  (setq not-indented nil))

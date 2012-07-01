@@ -14,7 +14,6 @@
 ;; to your .emacs file.  All files with a .rules extension should
 ;; then be associated with rules mode automatically. 
 
-;; From Impact 6.1 Rules Reference Guide
 (defconst rules-functions
   '(
     "charcount"
@@ -71,6 +70,8 @@
   `(
     (,(regexp-opt '("if" "else" "foreach" "break" "switch" "case" "include") 'words) . font-lock-keyword-face)
     (,(regexp-opt rules-functions 'words) . font-lock-function-name-face)
+    ("\\(@[a-zA-Z0-9_]*\\)" 1 font-lock-warning-face)
+    ("\\($[a-zA-Z0-9_*]*\\)" 1 font-lock-type-face)
     )
   "Minimal highlighting expressions for Netcool Probe Rules mode")
 

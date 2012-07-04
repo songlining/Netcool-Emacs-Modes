@@ -92,7 +92,7 @@
   (if (bobp)
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
-      (if (looking-at "^[ \t]*}")
+      (if (looking-at "^[ \t]*}[ \t]*\\(#.*\\)*$") ;; for comments "#..."
 	  (progn
 	    (save-excursion
 	      (forward-line -1)
@@ -102,16 +102,20 @@
 	(save-excursion
 	  (while not-indented ; Iterate backwards until we find an indentation hint
 	    (forward-line -1)
-	    (if (looking-at "^[ \t]*}[ \t]*$") ; This hint indicates that we need to indent at the level of the END_ token
+	    (if (looking-at "^[ \t]*}[ \t]*\\(#.*\\)*$") ;; clean } # ...
 		(progn
 		  (setq cur-indent (current-indentation))
 		  (setq not-indented nil))
-	      (if (looking-at ".*{[ \t]*$") ; This hint indicates that we need to indent an extra level
+	      (if (looking-at "^[^{\n]*}[ \t]*\\(#.*\\)*$") ;; ... } without {
 		  (progn
-		    (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
+		    (setq cur-indent (- (current-indentation) default-tab-width)) 
 		    (setq not-indented nil))
-		(if (bobp)
-		    (setq not-indented nil)))))))
+		(if (looking-at "\\(.*{[ \t]*\\(#.*\\)*$\\|^[ \t]*case[ \t]*\\)") ; This hint indicates that we need to indent an extra level
+		    (progn
+		      (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
+		      (setq not-indented nil))
+		  (if (bobp)
+		      (setq not-indented nil))))))))
       (if cur-indent
 	  (indent-line-to cur-indent)
 	(indent-line-to 0))))) ; If we didn't see an indentation hint, then allow no indentation
@@ -128,13 +132,13 @@
   (set (make-local-variable 'indent-line-function) 'rules-indent-line))
 
 (add-hook 'rules-mode-hook '(lambda ()
-			       (local-set-key (kbd "RET") 'newline-and-indent)
-			       (local-set-key (kbd "}") '(lambda ()
-							   (interactive)
-							   (self-insert-command 1)
-							   (rules-indent-line)))))
+                              (local-set-key (kbd "RET") 'newline-and-indent)
+                              (local-set-key (kbd "}") '(lambda ()
+                                                          (interactive)
+                                                          (self-insert-command 1)
+                                                          (rules-indent-line)))))
 
 (provide 'rules-mode)
 
 (setq auto-mode-alist (append '(("\\.rules$" . rules-mode))
-			      auto-mode-alist))
+                              auto-mode-alist))

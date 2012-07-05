@@ -86,7 +86,7 @@
     rules-mode-syntax-table)
   "Syntax table for rules-mode")
 
-;; modified from http://www.emacswiki.org/emacs/wpdl-mode.el
+;; Inspired and modified from http://www.emacswiki.org/emacs/wpdl-mode.el
 (defun rules-indent-line ()
   "Indent the rules lines"
   (interactive)
@@ -94,7 +94,9 @@
   (if (bobp)
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
-      (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(#.*\\)*$") ;; for comments "#..."
+      (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(#.*\\)*$")
+	  ; this is for the clean }
+	  ; other cases will fall into the backward iteration below
 	  (progn
 	    (save-excursion
 	      (goto-char (match-end 1))	; goto the end of the } matching
@@ -102,34 +104,52 @@
 	      (setq cur-indent (current-indentation)))
 	    (if (< cur-indent 0) ; We can't indent past the left margin
 		(setq cur-indent 0)))
-	(save-excursion
-	  (while not-indented ; Iterate backwards until we find an indentation hint
-	    (forward-line -1)
-	    (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; any line ends with }
-		(progn
-		  (save-excursion
+	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
+	    (save-excursion
+	      (forward-line -1)
+	      (if (looking-at "^[ \t]*switch.*{[ \t]*$")
+		  (progn
+		    (setq cur-indent (+ (current-indentation) default-tab-width))
+		    (setq not-indented nil))
+		(if (looking-at "^[ \t]*case[ \t]*\".*\".*:")
+		    (progn
+		      (setq cur-indent (current-indentation))
+		      (setq not-indented nil))
+		  (progn
+		    (setq cur-indent (- (current-indentation) default-tab-width))
+		    (setq not-indented nil)))))
+	    
+	  (save-excursion
+	    (while not-indented ; Iterate backwards until we find an indentation hint
+	      (forward-line -1)
+	      (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; any line ends with }
+		  (progn
 		    (goto-char (match-end 1))
 		    (backward-list)	
 		    (setq cur-indent (current-indentation))
-		    (setq not-indented nil)))
-	      (if (looking-at ".*{[ \t]*\\(#.*\\)*$") ; This hint indicates that we need to indent an extra level
-		  (progn
-		    (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
 		    (setq not-indented nil))
-		(if (bobp)
-		    (setq not-indented nil)))))))
-      (if cur-indent
-	  (indent-line-to cur-indent)
-	(indent-line-to 0))))) ; If we didn't see an indentation hint, then allow no indentation
-
+		(if (looking-at ".*{[ \t]*\\(#.*\\)*$") ; This hint indicates that we need to indent an extra level
+		    (progn
+		      (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
+		      (setq not-indented nil))
+		  (if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
+		      (progn
+			(setq cur-indent (+ (current-indentation) default-tab-width))
+			(setq not-indented nil))
+		    (if (bobp)
+			(setq not-indented nil)))))))))
+	(if cur-indent
+	    (indent-line-to cur-indent)
+	  (indent-line-to 0))))) ; If we didn't see an indentation hint, then allow no indentation
+  
 (define-derived-mode rules-mode fundamental-mode "Netcool Probe Rules Mode"
   "Major Mode for Netcool Probe Rules file Editing"
   (set-syntax-table rules-mode-syntax-table)
   (setq font-lock-defaults
-        '(rules-font-lock-keywords
-          nil                         ; KEYWORDS-ONLY: no
-          nil                           ; CASE-FOLD: yes. Rules file is case-sensitive. 
-          ((?_ . "w"))))              ; SYNTAX-ALIST
+	'(rules-font-lock-keywords
+	  nil                         ; KEYWORDS-ONLY: no
+	  nil                           ; CASE-FOLD: yes. Rules file is case-sensitive. 
+	  ((?_ . "w"))))              ; SYNTAX-ALIST
   
   (set (make-local-variable 'indent-line-function) 'rules-indent-line))
 

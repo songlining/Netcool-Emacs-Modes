@@ -105,7 +105,7 @@
 	(save-excursion
 	  (while not-indented ; Iterate backwards until we find an indentation hint
 	    (forward-line -1)
-	    (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; clean }
+	    (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; any line ends with }
 		(progn
 		  (save-excursion
 		    (goto-char (match-end 1))

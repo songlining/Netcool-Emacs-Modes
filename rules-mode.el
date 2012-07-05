@@ -68,7 +68,7 @@
 ;; http://www.emacswiki.org/emacs/FontLockKeywords
 (defconst rules-font-lock-keywords
   `(
-    (,(regexp-opt '("if" "else" "foreach" "break" "switch" "case" "include") 'words) . font-lock-keyword-face)
+    (,(regexp-opt '("if" "else" "foreach" "break" "switch" "case" "default" "include") 'words) . font-lock-keyword-face)
     (,(regexp-opt rules-functions 'words) . font-lock-function-name-face)
     ("\\(@[a-zA-Z0-9_]*\\)" 1 font-lock-warning-face)
     ("\\($[a-zA-Z0-9_*]*\\)" 1 font-lock-type-face)
@@ -81,6 +81,8 @@
     (modify-syntax-entry ?_ "w" rules-mode-syntax-table)
     (modify-syntax-entry  ?#   "<"   rules-mode-syntax-table)  ; start comment
     (modify-syntax-entry  ?\n  ">"   rules-mode-syntax-table)  ; end comment
+    ;;    (modify-syntax-entry ?{ "(}" rules-mode-syntax-table)
+    ;;    (modify-syntax-entry ?} "){" rules-mode-syntax-table)
     rules-mode-syntax-table)
   "Syntax table for rules-mode")
 
@@ -92,30 +94,30 @@
   (if (bobp)
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
-      (if (looking-at "^[ \t]*}[ \t]*\\(#.*\\)*$") ;; for comments "#..."
+      (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(#.*\\)*$") ;; for comments "#..."
 	  (progn
 	    (save-excursion
-	      (forward-line -1)
-	      (setq cur-indent (- (current-indentation) default-tab-width)))
+	      (goto-char (match-end 1))	; goto the end of the } matching
+	      (backward-list)		; move backward over a parenthetical group
+	      (setq cur-indent (current-indentation)))
 	    (if (< cur-indent 0) ; We can't indent past the left margin
 		(setq cur-indent 0)))
 	(save-excursion
 	  (while not-indented ; Iterate backwards until we find an indentation hint
 	    (forward-line -1)
-	    (if (looking-at "^[ \t]*}[ \t]*\\(#.*\\)*$") ;; clean } # ...
+	    (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; clean }
 		(progn
-		  (setq cur-indent (current-indentation))
-		  (setq not-indented nil))
-	      (if (looking-at "^[^{\n]*}[ \t]*\\(#.*\\)*$") ;; ... } without {
+		  (save-excursion
+		    (goto-char (match-end 1))
+		    (backward-list)	
+		    (setq cur-indent (current-indentation))
+		    (setq not-indented nil)))
+	      (if (looking-at ".*{[ \t]*\\(#.*\\)*$") ; This hint indicates that we need to indent an extra level
 		  (progn
-		    (setq cur-indent (- (current-indentation) default-tab-width)) 
+		    (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
 		    (setq not-indented nil))
-		(if (looking-at "\\(.*{[ \t]*\\(#.*\\)*$\\|^[ \t]*case[ \t]*\\)") ; This hint indicates that we need to indent an extra level
-		    (progn
-		      (setq cur-indent (+ (current-indentation) default-tab-width)) ; Do the actual indenting
-		      (setq not-indented nil))
-		  (if (bobp)
-		      (setq not-indented nil))))))))
+		(if (bobp)
+		    (setq not-indented nil)))))))
       (if cur-indent
 	  (indent-line-to cur-indent)
 	(indent-line-to 0))))) ; If we didn't see an indentation hint, then allow no indentation

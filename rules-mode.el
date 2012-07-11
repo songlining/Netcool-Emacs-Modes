@@ -102,8 +102,8 @@
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
       (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(#.*\\)*$")
-	  ; this is for the clean }
-	  ; other cases will fall into the backward iteration below
+	  ;; this is for the clean }
+	  ;; other cases will fall into the backward iteration below
 	  (progn
 	    (save-excursion
 	      (goto-char (match-end 1))	; goto the end of the } matching
@@ -126,7 +126,8 @@
                         (setq not-indented nil))
                     (if (looking-at "^[ \t]*default:[ \t]*.*$")
                         (progn
-                          (setq cur-indent (- (current-indentation) (* default-tab-width 2)))
+                          ;; times 2 is a rough guess and can be wrong, need to be fixed in the future
+                          (setq cur-indent (- (current-indentation) (* default-tab-width 2))) 
                           (setq not-indented nil))
                       (if (bobp)
                           (progn

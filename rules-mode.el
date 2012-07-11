@@ -13,6 +13,10 @@
 ;;
 ;; to your .emacs file.  All files with a .rules extension should
 ;; then be associated with rules mode automatically. 
+;; 
+;; Revision History
+;; v1.0:   July 5, 2012: First release
+;; v1.0.1: July 11, 2012: switch case bug fix
 
 (defconst rules-functions
   '(
@@ -106,20 +110,20 @@
 		(setq cur-indent 0)))
 	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
 	    (save-excursion
-	      (forward-line -1)
-	      (if (looking-at "^[ \t]*switch.*{[ \t]*$")
-		  (progn
-		    (setq cur-indent (+ (current-indentation) default-tab-width))
-		    (setq not-indented nil))
-		(if (looking-at "^[ \t]*case[ \t]*\".*\".*:")
-		    (progn
-		      (setq cur-indent (current-indentation))
-		      (setq not-indented nil))
-		  (progn
-		    (setq cur-indent (- (current-indentation) default-tab-width))
-		    (setq not-indented nil)))))
-	    
-	  (save-excursion
+              (while not-indented
+                (forward-line -1)
+                (if (looking-at "^[ \t]*switch.*{[ \t]*$")
+                    (progn
+                      (setq cur-indent (+ (current-indentation) default-tab-width))
+                      (setq not-indented nil))
+                  (if (looking-at "^[ \t]*case[ \t]*\".*\".*:.*$")
+                      (progn
+                        (setq cur-indent (current-indentation))
+                        (setq not-indented nil))
+                    (progn
+                      (setq cur-indent (- (current-indentation) default-tab-width))
+                      (setq not-indented nil))))))
+          	  (save-excursion
 	    (while not-indented ; Iterate backwards until we find an indentation hint
 	      (forward-line -1)
 	      (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; any line ends with }

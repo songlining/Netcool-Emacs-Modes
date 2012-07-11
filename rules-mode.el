@@ -19,6 +19,7 @@
 ;; v1.0.1: July 11, 2012: switch case bug fix
 ;; v1.0.2: July 11, 2012: switch case bug fix for Horstmann indent style 
 ;; v1.0.3: July 11, 2012: bug fix for nested switch cases
+;; v1.0.4: July 11, 2012: bug fix for case statement at the start of the include file
 
 (defconst rules-functions
   '(
@@ -126,7 +127,11 @@
                     (if (looking-at "^[ \t]*default:[ \t]*.*$")
                         (progn
                           (setq cur-indent (- (current-indentation) (* default-tab-width 2)))
-                          (setq not-indented nil)))))))
+                          (setq not-indented nil))
+                      (if (bobp)
+                          (progn
+                            (setq cur-indent (current-indentation))
+                            (setq not-indented nil))))))))
           (save-excursion
 	    (while not-indented ; Iterate backwards until we find an indentation hint
 	      (forward-line -1)

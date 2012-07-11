@@ -17,6 +17,8 @@
 ;; Revision History
 ;; v1.0:   July 5, 2012: First release
 ;; v1.0.1: July 11, 2012: switch case bug fix
+;; v1.0.2: July 11, 2012: switch case bug fix for Horstmann indent style 
+;; v1.0.3: July 11, 2012: bug fix for nested switch cases
 
 (defconst rules-functions
   '(
@@ -107,12 +109,13 @@
 	      (backward-list)		; move backward over a parenthetical group
 	      (setq cur-indent (current-indentation)))
 	    (if (< cur-indent 0) ; We can't indent past the left margin
+
 		(setq cur-indent 0)))
 	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
 	    (save-excursion
               (while not-indented
                 (forward-line -1)
-                (if (looking-at "^[ \t]*switch.*{[ \t]*$")
+                (if (looking-at "^[ \t]*switch.*{?[ \t]*.*$")
                     (progn
                       (setq cur-indent (+ (current-indentation) default-tab-width))
                       (setq not-indented nil))
@@ -120,10 +123,11 @@
                       (progn
                         (setq cur-indent (current-indentation))
                         (setq not-indented nil))
-                    (progn
-                      (setq cur-indent (- (current-indentation) default-tab-width))
-                      (setq not-indented nil))))))
-          	  (save-excursion
+                    (if (looking-at "^[ \t]*default:[ \t]*.*$")
+                        (progn
+                          (setq cur-indent (- (current-indentation) (* default-tab-width 2)))
+                          (setq not-indented nil)))))))
+          (save-excursion
 	    (while not-indented ; Iterate backwards until we find an indentation hint
 	      (forward-line -1)
 	      (if (looking-at "^.*\\(}\\)[ \t]*\\(#.*\\)*$") ; any line ends with }
@@ -158,7 +162,7 @@
   (set (make-local-variable 'indent-line-function) 'rules-indent-line))
 
 (add-hook 'rules-mode-hook '(lambda ()
-                              (local-set-key (kbd "RET") 'newline-and-indent)
+                              ; (local-set-key (kbd "RET") 'newline-and-indent)
                               (local-set-key (kbd "}") '(lambda ()
                                                           (interactive)
                                                           (self-insert-command 1)

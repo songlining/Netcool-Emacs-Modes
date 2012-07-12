@@ -20,6 +20,7 @@
 ;; v1.0.2: July 11, 2012: switch case bug fix for Horstmann indent style 
 ;; v1.0.3: July 11, 2012: bug fix for nested switch cases
 ;; v1.0.4: July 11, 2012: bug fix for case statement at the start of the include file
+;; v1.0.5: July 12, 2012: bug fix for nested switch cases (again)
 
 (defconst rules-functions
   '(
@@ -127,7 +128,7 @@
                           (setq not-indented nil))
                       (if (looking-at "^[ \t]*default\\(:\\)[ \t]*.*$") ; line 1038 for testing in snmptrap.rules
                           (save-excursion
-                            (debug)
+                            ; (debug)
                             (let ((default-pos (match-end 1))
                                   pos-})
                               

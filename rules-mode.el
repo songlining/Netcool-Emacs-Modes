@@ -113,7 +113,7 @@
 	    (if (< cur-indent 0) ; We can't indent past the left margin
 
 		(setq cur-indent 0)))
-	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
+	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default[ \t]*:\\)")
             (let ((case-pos (point)))
               (save-excursion
                 (while not-indented
@@ -126,18 +126,17 @@
                         (progn
                           (setq cur-indent (current-indentation))
                           (setq not-indented nil))
-                      (if (looking-at "^[ \t]*default\\(:\\)[ \t]*.*$") ; line 1038 for testing in snmptrap.rules
+                      (if (looking-at "^[ \t]*default[ \t]*\\(:\\)[ \t]*.*$") ; line 1038 for testing in snmptrap.rules
                           (save-excursion
                             ; (debug)
                             (let ((default-pos (match-end 1))
                                   pos-})
-                              
                               (goto-char case-pos)
                               (if (setq pos-} (re-search-backward "}" default-pos t 1))
                                   (progn 
                                     (goto-char (+ pos-} 1))
                                     (backward-list)
-                                    (setq cur-indent (current-indentation))
+                                    (setq cur-indent (- (current-indentation) default-tab-width))
                                     (setq not-indented nil))
                                 (progn
                                   (goto-char default-pos)

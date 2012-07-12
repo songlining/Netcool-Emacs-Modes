@@ -113,26 +113,39 @@
 
 		(setq cur-indent 0)))
 	(if (looking-at "\\(^[ \t]*case[ \t]*\".*\".*:\\|[ \t]*default:\\)")
-	    (save-excursion
-              (while not-indented
-                (forward-line -1)
-                (if (looking-at "^[ \t]*switch.*{?[ \t]*.*$")
-                    (progn
-                      (setq cur-indent (+ (current-indentation) default-tab-width))
-                      (setq not-indented nil))
-                  (if (looking-at "^[ \t]*case[ \t]*\".*\".*:.*$")
+            (let ((case-pos (point)))
+              (save-excursion
+                (while not-indented
+                  (forward-line -1)
+                  (if (looking-at "^[ \t]*switch.*{?[ \t]*.*$")
                       (progn
-                        (setq cur-indent (current-indentation))
+                        (setq cur-indent (+ (current-indentation) default-tab-width))
                         (setq not-indented nil))
-                    (if (looking-at "^[ \t]*default:[ \t]*.*$")
+                    (if (looking-at "^[ \t]*case[ \t]*\".*\".*:.*$")
                         (progn
-                          ;; times 2 is a rough guess and can be wrong, need to be fixed in the future
-                          (setq cur-indent (- (current-indentation) (* default-tab-width 2))) 
+                          (setq cur-indent (current-indentation))
                           (setq not-indented nil))
-                      (if (bobp)
-                          (progn
-                            (setq cur-indent (current-indentation))
-                            (setq not-indented nil))))))))
+                      (if (looking-at "^[ \t]*default\\(:\\)[ \t]*.*$") ; line 1038 for testing in snmptrap.rules
+                          (save-excursion
+                            (debug)
+                            (let ((default-pos (match-end 1))
+                                  pos-})
+                              
+                              (goto-char case-pos)
+                              (if (setq pos-} (re-search-backward "}" default-pos t 1))
+                                  (progn 
+                                    (goto-char (+ pos-} 1))
+                                    (backward-list)
+                                    (setq cur-indent (current-indentation))
+                                    (setq not-indented nil))
+                                (progn
+                                  (goto-char default-pos)
+                                  (setq cur-indent (- (current-indentation) (* default-tab-width 2)))
+                                  (setq not-indented nil)))))
+                        (if (bobp)
+                            (progn
+                              (setq cur-indent (current-indentation))
+                              (setq not-indented nil)))))))))
           (save-excursion
 	    (while not-indented ; Iterate backwards until we find an indentation hint
 	      (forward-line -1)

@@ -21,6 +21,7 @@
 ;; v1.0.3: July 11, 2012: bug fix for nested switch cases
 ;; v1.0.4: July 11, 2012: bug fix for case statement at the start of the include file
 ;; v1.0.5: July 12, 2012: bug fix for nested switch cases (again)
+;; v1.0.6: July 17, 2012: bug fix for: } else if ... {
 
 (defconst rules-functions
   '(
@@ -102,7 +103,7 @@
   (if (bobp)
       (indent-line-to 0)
     (let ((not-indented t) cur-indent)
-      (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(#.*\\)*$")
+      (if (looking-at "^[ \t]*\\(}\\)[ \t]*\\(else[ \t]*if\\)?.*\\(#.*\\)*$")
 	  ;; this is for the clean }
 	  ;; other cases will fall into the backward iteration below
 	  (progn

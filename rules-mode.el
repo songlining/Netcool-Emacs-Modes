@@ -192,3 +192,5 @@
 
 (setq auto-mode-alist (append '(("\\.rules$" . rules-mode))
                               auto-mode-alist))
+(setq auto-mode-alist (append '(("\\.lookup$" . rules-mode))
+                              auto-mode-alist))

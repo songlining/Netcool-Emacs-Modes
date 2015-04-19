@@ -79,8 +79,8 @@
   `(
     (,(regexp-opt '("if" "else" "foreach" "break" "switch" "case" "default" "include") 'words) . font-lock-keyword-face)
     (,(regexp-opt rules-functions 'words) . font-lock-function-name-face)
-    ("\\(@[a-zA-Z0-9_]*\\)" 1 font-lock-warning-face)
-    ("\\($[a-zA-Z0-9_*]*\\)" 1 font-lock-type-face)
+    ("\\(@[\-a-zA-Z0-9_]*\\)" 1 font-lock-warning-face)
+    ("\\($[\-*a-zA-Z0-9_*]*\\)" 1 font-lock-type-face)
     )
   "Minimal highlighting expressions for Netcool Probe Rules mode")
 

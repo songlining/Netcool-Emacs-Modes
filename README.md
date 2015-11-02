@@ -8,6 +8,6 @@ Want to see how it looks like? Check the [htmlized](http://emacswiki.org/emacs/h
 
 [The htmlized probe rules file](http://htmlpreview.github.io/?https://github.com/songlining/Netcool-Emacs-Modes/blob/master/snmptrap.rules.html)
 
-Want to try it out?  Copy this into your local Emacs library directory (~/.emacs.d/lisp in my case) and add a line:
+Want to try it out?  Copy [the file](https://github.com/songlining/Netcool-Emacs-Modes/blob/master/rules-mode.el) into your local Emacs library directory (~/.emacs.d/lisp in my case) and add a line:
 
 (require 'rules-mode)

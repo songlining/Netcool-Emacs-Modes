@@ -1,0 +1,1523 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.47 in css mode. -->
+<html>
+  <head>
+    <title>snmptrap.rules</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #000000;
+        background-color: #ffffff;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #b22222;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #0000ff;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #a020f0;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #8b2252;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #228b22;
+      }
+      .warning {
+        /* font-lock-warning-face */
+        color: #ff0000;
+        font-weight: bold;
+      }
+
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">###############################################################################
+#
+#    Licensed Materials - Property of IBM
+#    "Restricted Materials of IBM"
+#
+#    5724-S44
+#
+#    (C) Copyright IBM Corp. 2005, 2015
+#
+#    Netcool Knowledge Library
+#
+###############################################################################
+#
+# Compatible with:
+#
+# -  Netcool/Omnibus 3.x and 7
+# -  Netcool Rules File Standards (MUSE-STD-RF-03, Jan 2006)
+#
+###############################################################################
+#
+# 3.8 - Updated Release.
+#
+#     - Set NmosEventMap field with event map name and precedence value. The
+#       entries in NcoGateInserts.cfg file are migrated into NcKL rules and
+#       this file will be deprecated. Entries for deprecated or unsupported 
+#       traps in NcKL are excluded.
+#
+# 3.7 - Add 'registertarget' command to register the Object Server name. 
+#       This enables the rules to generate events using the 'genevent' command
+#       or divert events to other Object Server.
+#       Please refer to OMNIBus Probes &amp; Gateway Guide for more info.
+#
+# 3.6 - The details function is now disabled by default to reduce table queries.
+#       NcKL now uses the nvp_add function to store additional data in the 
+#       ExtendedAttr column in alerts.status table. Refer to
+#       OMNIbus best practices guide for more info.
+#
+#     - If the customer needs to use the details function, set the
+#       global flag $OPTION_EnableDetails to "1" or set the 
+#       $OPTION_EnableDetails_vendor to "1" to enable details for specific
+#       vendor rules file only.
+#
+# 3.5 - Added Modularity Feature to NcKL wherein all the snmp related rules
+#       files are divided into the subdirectories with respect to each Vendor.
+#
+#     - Included $vendor.master.include.rules and $vendor.master.include.lookup
+#       for each vendor.These master include files will contain all the include
+#       files for that particular vendor.And instead of including all the files
+#       individually in snmptrap.rules,master.include files for each vendor
+#       will be included that will in turn contain the entries of all the files
+#       related to that vendor.
+#
+#       The $vendor.master.include.rules would contain
+#       $vendor.include.snmptrap.rules entries.$vendor.master.include.lookup
+#       would contain the $vendor.sev.snmptrap.lookup,
+#       $vendor.include.snmptrap.lookup and the $vendor.preclass.snmptrap.lookup
+#
+#     - If the customer doesn't want to include specific vendor files, only 3
+#       lines needs to be commented from snmptrap.rules ie , $vendor.master.
+#       include.rules, $vendor.master.include.lookup and $vendor.preclass.include.
+#       snmptrap.rules.
+#
+#     - Modified the "severity lookup" files from TAB-delimited format to
+#       Double Quotes Seperated Tabular Format.Until NCKL1.4 release,these files
+#       were in the TAB-delimited format,which had 3 big disadvantages:
+#       - Can't add comments/version numbers/etc.. to the files, as this will
+#         generate lots of error messages and warnings in OMNIbus.
+#       - Table definitions and defaults have to be inserted in snmptrap.rules
+#         which was very cumbersome.
+#       - The file is hard to read and maintain,as the tabs were not directly
+#         visible in the editor. Difficult to count the number of TABs too.
+#
+#     - Added AssignCorrectAdvValue.include.snmptrap.rules file for the proper
+#       assignment of Advcorr values to the traps.
+#
+#     - 2007/10/08 Anchala Bansal
+#     - 2007/10/08 Aveek Kumar Gupta
+#
+# 3.4 - Removed Contrib from rules Directory
+#
+# 3.3 - Added support for a recently discovered Cisco-specific implementation
+#       of SNMPv2 linkDown and linkUp Traps.
+#
+#     - 2006/02/01 Robert Cowart 
+#
+# 3.2 - Corrected a bug that in some cases caused linkUp generic-traps to have
+#       improper values for Severity and Type.
+#
+# 3.1 - Simplified handling of "Severity via lookup" logic.
+#
+#     - Added basic debug logging.
+#
+# 3.0 - Modified to support following features introduced in NCiL 2.0:
+#         - "Advanced" and "User" include files
+#         - "Severity" lookup tables
+#
+# 2.4 - Renamed snmptrap.rules to avoid confusion with snmp.rules from the SNMP
+#       ISM.
+#
+#     - Cleaned up various comments.
+#
+#     - Updated handling of ProbeWatch messages.
+#
+# 2.3 - Additional enhancements for "Non-Default Field Support".
+#
+# 2.2 - Added include statement for FixMttrapdOids.include.snmptrap.rules, which
+#       recognizes OIDs from newer versions (OMNIbus 3.5 and later) of the
+#       MTTrapd Probe and converts them to the format of previous versions.
+#       This ensures backward compatibility to existing rules files.
+#
+#       NOTE: The long-term plan is to update all existing rules file, where
+#       necessary, for compatibility with the newer versions of MTTrapd which
+#       in fact represents OIDs correctly as outlined in various RFCs.
+#
+#     - Enhanced for "Non-Default Field Support".
+#
+#     - Added logic to correct confusing values of locIfReason sent by Cisco
+#       generic traps.
+#
+# 2.1 - Modified to recognize $enterprise as formed by the MTTrapd Probe from
+#       the version provided with OMNIbus 3.5 (Unix).
+#
+#     - Added logic to detect and alert user that the MIBFile and QuietOutput
+#       properties are improperly set.
+#
+# 2.0 - Modified the conversion of SNMPv2 trap OIDs to SNMPv1 enterprises in
+#       order to ensure compliancy with RFC2576 - "Coexistence between Version
+#       1, Version 2, and Version 3 of the Internet-standard Network Management
+#       Framework"
+#     
+#     - Modified setting of NodeAlias to properly handle tokens from NNM/NV
+#       and Trapd/MTTrapd Probes.
+#
+#     - Completely rewrote the handling of generic traps (again!).
+#
+###############################################################################
+</span>
+<span class="comment"># Register the Object Server name as DefaultOS. Uncomment the BackupOS line
+# and update the backup Server name if you wish to divert events 
+# to backup your Object Server.
+</span>DefaultOS = <span class="function-name">registertarget</span>( %Server, %ServerBackup, <span class="string">"alerts.status"</span>)
+<span class="comment">#BackupOS = registertarget("NCOMS_BK", "", "alerts.status")
+</span>
+<span class="comment"># declare the loads array
+</span>array loads;
+
+<span class="function-name">table</span> snmptrapCorrScore = <span class="string">"$NC_RULES_HOME/include-snmptrap/CorrScore.snmptrap.lookup"</span>
+<span class="keyword">default</span> = <span class="string">"Unknown"</span>
+
+<span class="function-name">table</span> syslogCorrScore = <span class="string">"$NC_RULES_HOME/include-syslog/CorrScore.syslog.lookup"</span>
+<span class="keyword">default</span> = <span class="string">"Unknown"</span>
+<span class="function-name">table</span> syslogPreClass = <span class="string">"$NC_RULES_HOME/include-syslog/PreClass.syslog.lookup"</span>
+<span class="keyword">default</span> = <span class="string">"Unknown"</span>
+
+<span class="function-name">table</span> ciscoIosDefaults = <span class="string">"$NC_RULES_HOME/include-syslog/cisco-ios/cisco-ios-defaults.syslog.lookup"</span>
+<span class="keyword">default</span> = {<span class="string">"Unknown"</span>,<span class="string">"Unknown"</span>}
+
+<span class="function-name">table</span> cisco-ios_sev = <span class="string">"$NC_RULES_HOME/include-syslog/cisco-ios.sev.syslog.lookup"</span>
+<span class="keyword">default</span> = {<span class="string">"Unknown"</span>,<span class="string">"Unknown"</span>,<span class="string">"Unknown"</span>}
+
+<span class="comment">################################################################################
+# Enter lookup table Includes below with the following syntax:
+#
+# include "&lt;$NCHOME&gt;/etc/rules/include-snmptrap/&lt;vendor&gt;/&lt;vendor&gt;.master.include
+# .lookup"
+################################################################################
+</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/ascii.include.common.lookup"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/hex.include.common.lookup"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/IANA.include.common.lookup"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/IANA-PppNumberAssignments.include.common.lookup"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/IANA-ProtocolNumbers.include.common.lookup"</span>
+
+<span class="comment">#include "$NC_RULES_HOME/include-snmptrap/acmepacket/acmepacket.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/adtran/adtran.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/adva/adva.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/alliedtelesyn/alliedtelesyn.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/ascend/ascend.master.include.lookup"
+</span><span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/ATMF/ATMF.master.include.lookup"</span>
+<span class="comment">#include "$NC_RULES_HOME/include-snmptrap/bridgewater/bridgewater.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/brocade/brocade.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/chipcom/chipcom.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/ciena/ciena.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/cisco/cisco.master.include.lookup"
+</span><span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/common-lookup/common.master.include.lookup"</span>
+<span class="comment">#include "$NC_RULES_HOME/include-snmptrap/eaton/eaton.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/empirix/empirix.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/enterasys/enterasys.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/exfo/exfo.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/fore/fore.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/foundry/foundry.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/fujitsu/fujitsu.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/hatteras/hatteras.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/huawei/huawei.master.include.lookup"
+</span><span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IANA/IANA.master.include.lookup"</span>
+<span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ibm/ibm.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/IEEE/IEEE.master.include.lookup"
+</span><span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IETF/IETF.master.include.lookup"</span>
+<span class="comment">#include "$NC_RULES_HOME/include-snmptrap/infinera/infinera.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/juniper/juniper.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/keymile/keymile.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/latitude/latitude.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/mrv/mrv.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/netscout/netscout.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/networkharmoni/networkharmoni.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/nortel/nortel.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/ntntech/ntntech.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/rapidcity/rapidcity.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/riverbed/riverbed.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/sandvine/sandvine.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/sap/sap.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/shasta/shasta.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/stratacom/stratacom.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/synoptics/synoptics.master.include.lookup"
+#include "$NC_RULES_HOME/include-snmptrap/trilliant/trilliant.master.include.lookup"
+</span>
+
+<span class="comment">###############################################################################
+# End of lookup table Includes
+###############################################################################
+</span>
+<span class="comment">###############################################################################
+# Enter "Severity" lookup tables below with the following syntax:
+#
+# include "&lt;$NCHOME&gt;/etc/rules/include-snmptrap/&lt;lookuptable&gt;.include.snmptrap
+# .lookup"
+###############################################################################
+</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/snmptrap.sev.lookup"</span>
+
+<span class="comment">###############################################################################
+# End of "Severity" lookup table Includes
+###############################################################################
+</span>
+
+<span class="comment">###############################################################################
+# Set the following option to "1" to use details() for debugging
+# or set $OPTION_EnableDetails_&lt;vendor&gt; = "1" to enable details() for specifc
+# vendor rules only.
+# Example: $OPTION_EnableDetails_ibm = "1"
+###############################################################################
+</span><span class="type">$OPTION_EnableDetails</span> = <span class="string">"0"</span>
+
+
+<span class="keyword">if</span>(<span class="function-name">match</span>(<span class="warning">@Manager</span>, <span class="string">"ProbeWatch"</span>))
+{
+        <span class="type">$ProbeName</span> = <span class="warning">@Agent</span>
+        <span class="type">$ProbeStatus</span> = <span class="warning">@Summary</span>
+        
+        <span class="warning">@Agent</span> = <span class="string">"Micromuse-ProbeWatch"</span>
+        
+        <span class="warning">@Node</span> = <span class="function-name">hostname</span>()
+        
+        <span class="warning">@AlertGroup</span> = <span class="string">"Probe Status"</span>
+        <span class="warning">@AlertKey</span> = <span class="string">"Probe: "</span> + <span class="type">$ProbeName</span> + <span class="string">", Host: "</span> + <span class="function-name">hostname</span>() + <span class="string">", ObjectServer: "</span> + <span class="warning">@ServerName</span>
+        <span class="warning">@Summary</span> = <span class="string">"Probe "</span> + <span class="type">$ProbeStatus</span> + <span class="string">"  ( "</span> + <span class="warning">@AlertKey</span> + <span class="string">" )"</span>
+        <span class="keyword">switch</span>(<span class="type">$ProbeStatus</span>)
+        {
+                <span class="keyword">case</span> <span class="string">"Running ..."</span>:
+                        <span class="warning">@Severity</span> = 1
+                        <span class="warning">@Type</span> = 2
+                <span class="keyword">case</span> <span class="string">"Going Down ..."</span>:
+                        <span class="warning">@Severity</span> = 5
+                        <span class="warning">@Type</span> = 1
+                <span class="keyword">default</span>:
+                        <span class="warning">@Severity</span> = 2
+                        <span class="warning">@Type</span> = 1
+        }
+        <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertKey</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="type">$DEFAULT_Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$ProbeStatus</span>
+}
+<span class="keyword">else</span>
+{
+        
+        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; Entering... snmptrap.rules &gt;&gt;&gt;&gt;&gt;"</span>)
+        
+        <span class="comment">###########################################################################
+</span>        <span class="comment"># Set default Manager, Agent, and Class by uncommenting one of each of the
+</span>        <span class="comment"># following choices.
+</span>        <span class="comment">###########################################################################
+</span>        
+        <span class="comment"># @Manager = "Trapd Probe on " + hostname()
+</span>        <span class="comment"># @Agent = "trapd"
+</span>        <span class="comment"># @Class = "300"
+</span>        <span class="warning">@Manager</span> = <span class="string">"MTTrapd Probe on "</span> + <span class="function-name">hostname</span>()
+        <span class="warning">@Agent</span> = <span class="string">"mttrapd"</span>
+        <span class="warning">@Class</span> = <span class="string">"300"</span>
+        <span class="comment"># @Manager = "HP OpenView NNM on " + hostname()
+</span>        <span class="comment"># @Agent = "nnm"
+</span>        <span class="comment"># @Class = "400"
+</span>        <span class="comment"># @Manager = "IBM NetView on " + hostname()
+</span>        <span class="comment"># @Agent = "nv5"
+</span>        <span class="comment"># @Class = "700"
+</span>        
+        <span class="comment">###########################################################################
+</span>        <span class="comment"># End of default Manager, Agent, and Class
+</span>        <span class="comment">###########################################################################
+</span>        
+        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/FixMttrapdOids.include.snmptrap.rules"</span>
+        
+        <span class="type">$OPTION_StateBasedCorr</span> = <span class="string">"0"</span>
+        
+        <span class="comment">##########
+</span>        <span class="comment"># Check if an SNMPv2 trap and convert to SNMPv1 style tokens
+</span>        <span class="comment">##########
+</span>        
+        <span class="keyword">if</span>(<span class="function-name">exists</span>(<span class="type">$notify</span>)) <span class="comment">### if $notify exists then this is an SNMPv2 trap
+</span>        {
+                <span class="warning">@Node</span> = <span class="type">$PeerAddress</span>
+                <span class="warning">@NodeAlias</span> = <span class="type">$PeerIPaddress</span>
+                
+                <span class="comment">##########
+</span>                <span class="comment"># Remove the artifacts of SNMP library being 'helpful'. We'll only
+</span>                <span class="comment"># remove the first .iso., everything else should be just plain numbers.
+</span>                <span class="comment"># With the mttrapd probe, this has to be done by specifying the
+</span>                <span class="comment"># following property in the probe's properties file:
+</span>                <span class="comment">#   MIBFile : /dev/null
+</span>                <span class="comment">#
+</span>                <span class="comment"># NOTE: When using the mttrapd probe from OMNIbus 3.5 or later it is
+</span>                <span class="comment"># also necessary to us "Quiet Output".  This is done by setting the
+</span>                <span class="comment"># following property in the probe's properties file:
+</span>                <span class="comment">#   QuietOutput : 1
+</span>                <span class="comment">##########
+</span>                
+                <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$notify</span>, <span class="string">"^enterprises\..*"</span>))
+                {
+                        <span class="type">$MIBFileNotNull</span> = 1
+                        <span class="type">$notify</span> = <span class="string">".1.3.6.1.4.1."</span> + <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"^enterprises\.(.*)"</span>)
+                }
+                <span class="keyword">else</span> <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$notify</span>, <span class="string">"\.iso\."</span> ))
+                {
+                        <span class="type">$notify</span> = <span class="string">".1."</span> + <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"\.iso\.(.*)"</span>)
+                }
+                
+                <span class="keyword">if</span> (<span class="function-name">nmatch</span>(<span class="type">$notify</span>, <span class="string">".1.3.6.1.6.3.1.1.5"</span>)) <span class="comment">### Trap is an SNMPv2 Generic Trap
+</span>                {
+                        <span class="type">$enterprise</span> = <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"(.*)\.[0-9]+$"</span>)
+                        <span class="type">$specific-trap</span> = <span class="string">"0"</span>
+                        <span class="type">$generic-trap</span> = <span class="function-name">int</span>(<span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">".*\.([0-9]+)$"</span>))-1
+                }
+                <span class="keyword">else</span> <span class="comment">### Trap is Enterprise Specific
+</span>                {
+                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"\.([0-9]+)\.[0-9]+$"</span>), <span class="string">"0"</span>))
+                        {
+                                <span class="type">$enterprise</span> = <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"(.*)\.[0-9]+\.[0-9]+$"</span>)
+                        }
+                        <span class="keyword">else</span>
+                        {
+                                <span class="type">$enterprise</span> = <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">"(.*)\.[0-9]+$"</span>)
+                        }
+                        <span class="type">$specific-trap</span> = <span class="function-name">extract</span>(<span class="type">$notify</span>, <span class="string">".*\.([0-9]+)$"</span>)
+                        <span class="type">$generic-trap</span> = <span class="string">"6"</span>
+                }
+        }
+        <span class="keyword">else</span> <span class="comment">### This is an SNMPv1 Trap
+</span>        {
+                <span class="warning">@Node</span> = <span class="type">$Node</span>
+                <span class="keyword">if</span>(<span class="function-name">exists</span>(<span class="type">$IPAddress</span>)) <span class="comment">### Trap is from NNM or NV Probe
+</span>                {
+                        <span class="type">$IPaddress</span> = <span class="type">$IPAddress</span>
+                }
+                <span class="warning">@NodeAlias</span> = <span class="type">$IPaddress</span>
+                <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$enterprise</span>, <span class="string">"^iso\..*"</span>))
+                {
+                        <span class="type">$NoQuietOutput</span> = 1
+                        <span class="type">$enterprise</span> = <span class="string">".1."</span> + <span class="function-name">extract</span>(<span class="type">$enterprise</span>, <span class="string">"iso\.(.*)"</span>)
+                }
+        }
+        
+        <span class="type">$OS_LocalNodeAlias</span> = <span class="warning">@NodeAlias</span>
+        
+        <span class="comment">##########
+</span>        <span class="comment"># End of SNMPv2 to SNMPv1 conversion
+</span>        <span class="comment">##########
+</span>        
+        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$generic-trap</span>, <span class="string">"6"</span>)) <span class="comment">### (Enterprise Specific Trap)
+</span>        {
+                <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is an enterprise-specific trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                
+                <span class="keyword">switch</span>(<span class="type">$enterprise</span>)
+                {
+                        <span class="keyword">case</span> <span class="string">"dummy case statement"</span>: <span class="comment">### This will prevent syntax errors in case no includes are added below.
+</span>                                
+                                <span class="comment">################################################################################
+</span>                                <span class="comment"># Enter rules file Includes below with the following syntax:
+</span>                                <span class="comment">#
+</span>                                <span class="comment"># include "&lt;$NCHOME&gt;/etc/rules/include-snmptrap/&lt;vendor&gt;/&lt;vendor&gt;.master.include
+</span>                                <span class="comment"># .rules"
+</span>                                <span class="comment">################################################################################
+</span>
+
+                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/acmepacket/acmepacket.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/adtran/adtran.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/adva/adva.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/alliedtelesyn/alliedtelesyn.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ascend/ascend.master.include.rules"
+</span>                                <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/ATMF/ATMF.master.include.rules"</span>
+                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/bridgewater/bridgewater.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/brocade/brocade.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/chipcom/chipcom.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ciena/ciena.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/cisco/cisco.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/eaton/eaton.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/empirix/empirix.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/enterasys/enterasys.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/exfo/exfo.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/fore/fore.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/foundry/foundry.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/fujitsu/fujitsu.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/hatteras/hatteras.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/huawei/huawei.master.include.rules"
+</span>                                <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IANA/IANA.master.include.rules"</span>
+                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ibm/ibm.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/IEEE/IEEE.master.include.rules"
+</span>                                <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IETF/IETF.master.include.rules"</span>
+                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/infinera/infinera.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/juniper/juniper.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/keymile/keymile.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/latitude/latitude.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/mrv/mrv.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/netscout/netscout.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/networkharmoni/networkharmoni.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/nortel/nortel.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ntntech/ntntech.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/rapidcity/rapidcity.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/riverbed/riverbed.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/sandvine/sandvine.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/sap/sap.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/shasta/shasta.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/stratacom/stratacom.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/synoptics/synoptics.master.include.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/trilliant/trilliant.master.include.rules"                        
+</span>
+                                
+                                
+                                <span class="comment">###################################################################
+</span>                                <span class="comment"># End of rules file Includes
+</span>                                <span class="comment">###################################################################
+</span>                                
+                        <span class="keyword">default</span>:
+                                
+                                <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Enterprise ID not found, checking ncotdc include files. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                
+                                <span class="type">$EventID</span> = <span class="type">$enterprise</span> + <span class="string">"|"</span> + <span class="type">$generic-trap</span> + <span class="string">"|"</span> + <span class="type">$specific-trap</span>
+                                
+                                <span class="keyword">switch</span>(<span class="type">$EventID</span>)
+                                {
+                                        <span class="keyword">case</span> <span class="string">"dummy case statement"</span>: <span class="comment">### This will prevent syntax errors in case no includes are added below.
+</span>                                                
+                                                <span class="comment">###########################################################
+</span>                                                <span class="comment"># Enter "nco_tdc" Includes below with the following syntax:
+</span>                                                <span class="comment">#
+</span>                                                <span class="comment"># include "&lt;$NCHOME&gt;/etc/rules/include-snmptrap/ncotdc/
+</span>                                                <span class="comment"># &lt;rulesfile&gt;.ncotdc.include.rules"
+</span>                                                <span class="comment">###########################################################
+</span>                                                
+                                                
+
+                                                <span class="comment">###########################################################
+</span>                                                <span class="comment"># End of "nco_tdc" Includes
+</span>                                                <span class="comment">###########################################################
+</span>                                                
+                                        <span class="keyword">default</span>:
+                                                
+                                                <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Enterprise ID not found in any include file. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                                
+                                                <span class="warning">@Summary</span> = <span class="string">"No Rules Found for Enterprise ID: "</span> + <span class="type">$enterprise</span> + <span class="string">" (see details)"</span>
+                                                <span class="warning">@Severity</span> = 2
+                                                <span class="warning">@Type</span> = 0
+                                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                        <span class="function-name">details</span>(<span class="type">$</span>*)
+                                                }
+                                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="type">$</span>*)
+                                }
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="type">$enterprise</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span> + <span class="string">" "</span> + <span class="type">$specific-trap</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="warning">@AlertKey</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span>
+                }
+        }
+        <span class="keyword">else</span> <span class="comment">### Check the Generic Traps
+</span>        {
+                <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is a generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                
+                <span class="type">$OPTION_TypeFieldUsage</span> = <span class="string">"3.6"</span>
+                
+                <span class="comment">##########
+</span>                <span class="comment"># Generic Trap Defaults
+</span>                <span class="comment">##########
+</span>                
+                <span class="warning">@Agent</span> = <span class="string">"Generic"</span>
+                
+                <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                {
+                        <span class="keyword">case</span> <span class="string">"0"</span>: <span class="comment">### coldStart
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># A coldStart trap signifies that the sending protocol entity
+</span>                                <span class="comment"># is reinitializing itself such that the agent's configuration
+</span>                                <span class="comment"># or the protocol entity implementation may be altered.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-coldStart"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"Generic"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">""</span>
+                                <span class="warning">@Summary</span> = <span class="string">"Cold Start"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 2
+                                <span class="type">$DEFAULT_Type</span> = 13
+                                <span class="type">$DEFAULT_ExpireTime</span> = 1800
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="warning">@Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">case</span> <span class="string">"1"</span>: <span class="comment">### warmStart
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># A warmStart trap signifies that the sending protocol entity
+</span>                                <span class="comment"># is reinitializing itself such that neither the agent
+</span>                                <span class="comment"># configuration nor the protocol entity implementation is
+</span>                                <span class="comment"># altered.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-warmStart"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"Generic"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">""</span>
+                                <span class="warning">@Summary</span> = <span class="string">"Warm Start"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 2
+                                <span class="type">$DEFAULT_Type</span> = 13
+                                <span class="type">$DEFAULT_ExpireTime</span> = 1800
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="warning">@Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### linkDown
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># A linkDown trap signifies that the sending protocol entity
+</span>                                <span class="comment"># recognizes a failure in one of the communication links
+</span>                                <span class="comment"># represented in the agent's configuration.
+</span>                                <span class="comment">#
+</span>                                <span class="comment"># $1 = ifIndex - A unique value for each interface. Its value
+</span>                                <span class="comment">#        ranges between 1 and the value of ifNumber. The value
+</span>                                <span class="comment">#        for each interface must remain constant at least from
+</span>                                <span class="comment">#        one re-initialization of the entity's network
+</span>                                <span class="comment">#        management system to the next re-initialization.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                        <span class="function-name">details</span>(<span class="type">$ifIndex</span>)
+                                }
+                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>)
+                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-linkDown"</span>
+                                <span class="warning">@NmosEventMap</span> = <span class="string">"LinkDownIfIndex.910"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"Generic Link Status"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">"ifEntry."</span> + <span class="type">$1</span>
+                                <span class="warning">@Summary</span> = <span class="string">"Link Down"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 4
+                                <span class="type">$DEFAULT_Type</span> = 1
+                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertKey</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="type">$DEFAULT_Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### linkUp
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># A linkUp trap signifies that the sending protocol entity
+</span>                                <span class="comment"># recognizes that one of the communication links represented in
+</span>                                <span class="comment"># the agent's configuration has come up.
+</span>                                <span class="comment">#
+</span>                                <span class="comment"># $1 = ifIndex - A unique value for each interface. Its value
+</span>                                <span class="comment">#        ranges between 1 and the value of ifNumber. The value
+</span>                                <span class="comment">#        for each interface must remain constant at least from
+</span>                                <span class="comment">#        one re-initialization of the entity's network
+</span>                                <span class="comment">#        management system to the next re-initialization.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                        <span class="function-name">details</span>(<span class="type">$ifIndex</span>)
+                                }
+                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>)
+                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-linkUp"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"Generic Link Status"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">"ifEntry."</span> + <span class="type">$1</span>
+                                <span class="warning">@Summary</span> = <span class="string">"Link Up"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 1
+                                <span class="type">$DEFAULT_Type</span> = 2
+                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertKey</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="type">$DEFAULT_Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">case</span> <span class="string">"4"</span>: <span class="comment">### authenticationFailure
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># An authenticationFailure trap signifies that the sending
+</span>                                <span class="comment"># protocol entity is the addressee of a protocol message that
+</span>                                <span class="comment"># is not properly authenticated. While implementations of the
+</span>                                <span class="comment"># SNMP must be capable of generating this trap, they must also
+</span>                                <span class="comment"># be capable of suppressing the emission of such traps via an
+</span>                                <span class="comment"># implementation-specific mechanism.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-authenticationFailure"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"Generic Authentication"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">""</span>
+                                <span class="warning">@Summary</span> = <span class="string">"Authentication Failure"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 3
+                                <span class="type">$DEFAULT_Type</span> = 1
+                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="warning">@Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">case</span> <span class="string">"5"</span>: <span class="comment">### egpNeighborLoss
+</span>                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># An egpNeighborLoss trap signifies that an EGP neighbor for
+</span>                                <span class="comment"># whom the sending protocol entity was an EGP peer has been
+</span>                                <span class="comment"># marked down and the peer relationship no longer obtains.
+</span>                                <span class="comment">##########
+</span>                                
+                                <span class="type">$OS_EventId</span> = <span class="string">"SNMPTRAP-egpNeighborLoss"</span>
+                                
+                                <span class="warning">@AlertGroup</span> = <span class="string">"EGP Neighbor Status"</span>
+                                <span class="warning">@AlertKey</span> = <span class="string">""</span>
+                                <span class="warning">@Summary</span> = <span class="string">"EGP Neighbor Loss"</span>
+                                
+                                <span class="type">$DEFAULT_Severity</span> = 3
+                                <span class="type">$DEFAULT_Type</span> = 1
+                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="warning">@AlertGroup</span> + <span class="string">" "</span> + <span class="warning">@Type</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span>
+                                
+                        <span class="keyword">default</span>:
+                                
+                                <span class="warning">@Summary</span> = <span class="string">"Invalid Generic Trap Number, see Details ( Enterprise: "</span> + <span class="type">$enterprise</span> + <span class="string">", Generic #: "</span> + <span class="type">$generic-trap</span> + <span class="string">", Specific #: "</span> + <span class="type">$specific-trap</span> + <span class="string">" "</span> + <span class="string">" )"</span>
+                                <span class="warning">@Severity</span> = 2
+                                <span class="warning">@Type</span> = 0
+                                <span class="warning">@Identifier</span> = <span class="warning">@Node</span> + <span class="string">" "</span> + <span class="type">$enterprise</span> + <span class="string">" "</span> + <span class="type">$generic-trap</span> + <span class="string">" "</span> + <span class="type">$specific-trap</span> + <span class="string">" "</span> + <span class="warning">@Agent</span> + <span class="string">" "</span> + <span class="warning">@Manager</span>
+                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                        <span class="function-name">details</span>(<span class="type">$</span>*)
+                                }
+                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="type">$</span>*)
+                }
+                
+                <span class="comment">##########
+</span>                <span class="comment"># End of Generic Trap Defaults
+</span>                <span class="comment">##########
+</span>                
+                <span class="keyword">switch</span>(<span class="type">$enterprise</span>)
+                {
+                        <span class="keyword">case</span> <span class="string">".1.3.6.1.6.3.1.1.5"</span>: <span class="comment">### RFC1907 - SNMPv2-MIB
+</span>                                
+                                <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID1</span>, <span class="string">"1.3.6.1.4.1.9."</span>)||<span class="function-name">nmatch</span>(<span class="type">$OID2</span>, <span class="string">"1.3.6.1.4.1.9."</span>)||<span class="function-name">nmatch</span>(<span class="type">$OID4</span>, <span class="string">"1.3.6.1.4.1.9."</span>))
+                                {
+                                        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is a Cisco SNMPv2 generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                        
+                                        <span class="warning">@Agent</span> = <span class="string">"Generic-Cisco SNMPv2"</span>
+                                        <span class="warning">@Class</span> = <span class="string">"40057"</span>
+                                        
+                                        <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                                        {
+                                                <span class="keyword">case</span> <span class="string">"0"</span>|<span class="string">"1"</span>: <span class="comment">### coldStart, warmStart
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = sysUpTime - The time (in hundredths of a
+</span>                                                        <span class="comment">#        second) since the network management
+</span>                                                        <span class="comment">#        portion of the system was last
+</span>                                                        <span class="comment">#        re-initialized.
+</span>                                                        <span class="comment"># $2 = whyReload - This variable contains a
+</span>                                                        <span class="comment">#        printable octet string which contains the
+</span>                                                        <span class="comment">#        reason why the system was last restarted.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="type">$sysUptime</span> = <span class="type">$1</span>
+                                                        <span class="type">$whyReload</span> = <span class="type">$2</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$sysUptime</span>,<span class="type">$whyReload</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"sysUptime"</span>, <span class="type">$sysUptime</span>, <span class="string">"whyReload"</span>, <span class="type">$whyReload</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">": "</span> + <span class="type">$2</span>
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$2</span>
+                                                        
+                                                <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.                
+</span>                                                        <span class="comment"># $2 = ifDescr - A textual string containing
+</span>                                                        <span class="comment">#        information about the interface.  This
+</span>                                                        <span class="comment">#        string should include the name of the
+</span>                                                        <span class="comment">#        manufacturer, the product name and the
+</span>                                                        <span class="comment">#        version of the hardware interface.
+</span>                                                        <span class="comment"># $3 = ifType - The type of interface,
+</span>                                                        <span class="comment">#        distinguished according to the
+</span>                                                        <span class="comment">#        physical/link protocol(s) immediately
+</span>                                                        <span class="comment">#        `below' the network layer in the protocol
+</span>                                                        <span class="comment">#        stack.
+</span>                                                        <span class="comment"># $4 = locIfReason - Reason for interface last
+</span>                                                        <span class="comment">#        status change.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="comment">#if(match($generic-trap, "2") &amp;&amp; match($4, "up"))
+</span>                                                        <span class="comment">#{
+</span>                                                                <span class="comment">#    $4 = "down"
+</span>                                                                <span class="comment">#}
+</span>                                                        <span class="comment">#else if(match($generic-trap, "3") &amp;&amp; match($4, "down"))
+</span>                                                        <span class="comment">#{
+</span>                                                                <span class="comment">#    $4 = "up"
+</span>                                                                <span class="comment">#}
+</span>                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                        <span class="type">$ifDescr</span> = <span class="type">$2</span>
+                                                        <span class="type">$ifType</span> = <span class="function-name">lookup</span>(<span class="type">$3</span>, IANAifType) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                        <span class="type">$locIfReason</span> = <span class="type">$4</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifDescr</span>,<span class="type">$ifType</span>,<span class="type">$locIfReason</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifDescr"</span>, <span class="type">$ifDescr</span>, <span class="string">"ifType"</span>, <span class="type">$ifType</span>,
+                                                        <span class="string">"locIfReason"</span>, <span class="type">$locIfReason</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">": "</span> + <span class="type">$4</span> + <span class="string">"  ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$4</span>
+                                                        
+                                                <span class="keyword">case</span> <span class="string">"4"</span>: <span class="comment">### authenticationFailure
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = authAddr - This variable contains the last
+</span>                                                        <span class="comment">#        SNMP authorization failure IP address.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="type">$authAddr</span> = <span class="type">$1</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$authAddr</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"authAddr"</span>, <span class="type">$authAddr</span>)
+                                                        
+                                                        <span class="warning">@AlertKey</span> = <span class="type">$1</span>
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( From: "</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$1</span>
+                                                        
+                                                <span class="keyword">case</span> <span class="string">"5"</span>: <span class="comment">### egpNeighborLoss
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = egpNeighAddr - The IP address of this
+</span>                                                        <span class="comment">#        entry's EGP neighbor.
+</span>                                                        <span class="comment">###########
+</span>                                                        
+                                                        <span class="type">$egpNeighAddr</span> = <span class="type">$1</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$egpNeighAddr</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"egpNeighAddr"</span>, <span class="type">$egpNeighAddr</span>)
+                                                        
+                                                        <span class="warning">@AlertKey</span> = <span class="type">$1</span>
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( Neighbor: "</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$1</span>
+                                                        
+                                                <span class="keyword">default</span>:
+                                        }
+                                }
+                                <span class="keyword">else</span> <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID6</span>, <span class="string">"1.3.6.1.4.1.9."</span>))
+                                {
+                                        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is a Cisco SNMPv2 generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                        
+                                        <span class="warning">@Agent</span> = <span class="string">"Generic-Cisco SNMPv2"</span>
+                                        <span class="warning">@Class</span> = <span class="string">"40057"</span>
+                                        
+                                        <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                                        {
+                                                <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.                
+</span>                                                        <span class="comment"># $2 = ifAdminStatus - The desired state of the
+</span>                                                        <span class="comment">#        interface.  The testing(3) state indicates
+</span>                                                        <span class="comment">#        that no operational packets can be passed.
+</span>                                                        <span class="comment"># $3 = ifOperStatus - The current operational state
+</span>                                                        <span class="comment">#        of the interface. The testing(3) state
+</span>                                                        <span class="comment">#        indicates that no operational packets can
+</span>                                                        <span class="comment">#        be passed.
+</span>                                                        <span class="comment"># $4 = ifDescr - A textual string containing
+</span>                                                        <span class="comment">#        information about the interface. This
+</span>                                                        <span class="comment">#        string should include the name of the
+</span>                                                        <span class="comment">#        manufacturer, the product name and the
+</span>                                                        <span class="comment">#        version of the interface
+</span>                                                        <span class="comment">#        hardware/software.
+</span>                                                        <span class="comment"># $5 = ifType - The type of interface. Additional
+</span>                                                        <span class="comment">#        values for ifType are assigned by the
+</span>                                                        <span class="comment">#        Internet Assigned Numbers Authority
+</span>                                                        <span class="comment">#        (IANA), through updating the syntax of the
+</span>                                                        <span class="comment">#        IANAifType textual convention.
+</span>                                                        <span class="comment"># $6 = locIfReason - Reason for interface last
+</span>                                                        <span class="comment">#        status change.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$2</span>, <span class="string">"^.*[A-Za-z].*$"</span>)||<span class="function-name">regmatch</span>(<span class="type">$3</span>, <span class="string">"^.*[A-Za-z].*$"</span>)||<span class="function-name">regmatch</span>(<span class="type">$5</span>, <span class="string">"^.*[A-Za-z].*$"</span>))
+                                                        {
+                                                                <span class="type">$MIBFileNotNull</span> = 1
+                                                        }
+                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>                
+                                                        <span class="type">$ifAdminStatus</span> = <span class="function-name">lookup</span>(<span class="type">$2</span>, ifAdminStatus) + <span class="string">" ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                        <span class="type">$ifOperStatus</span> = <span class="function-name">lookup</span> (<span class="type">$3</span>, ifOperStatus) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                        <span class="type">$ifDescr</span> = <span class="type">$4</span>
+                                                        <span class="type">$ifType</span> = <span class="function-name">lookup</span>(<span class="type">$5</span>, IANAifType) + <span class="string">" ( "</span> + <span class="type">$5</span> + <span class="string">" )"</span>
+                                                        <span class="type">$locIfReason</span> = <span class="type">$6</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifAdminStatus</span>,<span class="type">$ifOperStatus</span>,<span class="type">$ifDescr</span>,<span class="type">$ifType</span>,<span class="type">$locIfReason</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifAdminStatus"</span>, <span class="type">$ifAdminStatus</span>, <span class="string">"ifOperStatus"</span>, <span class="type">$ifOperStatus</span>,
+                                                        <span class="string">"ifDescr"</span>, <span class="type">$ifDescr</span>, <span class="string">"ifType"</span>, <span class="type">$ifType</span>, <span class="string">"locIfReason"</span>, <span class="type">$locIfReason</span>)
+                                                        
+                                                        <span class="keyword">switch</span>(<span class="type">$2</span>)
+                                                        {
+                                                                <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### Down
+</span>                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Administratively: "</span> + <span class="type">$6</span> + <span class="string">"  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminDown"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 2
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### Testing - in some test mode
+</span>                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Testing: "</span> + <span class="type">$6</span> + <span class="string">"  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminTesting"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 2
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                <span class="keyword">default</span>:
+                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">": "</span> + <span class="type">$6</span> + <span class="string">"  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminUp"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 4
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                        }
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$2</span> + <span class="string">" "</span> + <span class="type">$3</span> + <span class="string">" "</span> + <span class="type">$6</span>
+                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$generic-trap</span>, <span class="string">"3"</span>))
+                                                        {
+                                                                <span class="type">$DEFAULT_Severity</span> = 1
+                                                                <span class="type">$DEFAULT_Type</span> = 2
+                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                        }
+                                                        
+                                                <span class="keyword">default</span>:
+                                        }
+                                }
+                                <span class="keyword">else</span> <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID1</span>, <span class="string">"1.3.6.1.2.1.2.2.1.1."</span>)&amp;&amp;<span class="function-name">nmatch</span>(<span class="type">$OID2</span>, <span class="string">"1.3.6.1.2.1.2.2.1.2."</span>)&amp;&amp;<span class="function-name">nmatch</span>(<span class="type">$OID3</span>, <span class="string">"1.3.6.1.2.1.2.2.1.3."</span>))
+                                {
+                                        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is a Cisco SNMPv2 generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                        
+                                        <span class="warning">@Agent</span> = <span class="string">"Generic-Cisco SNMPv2"</span>
+                                        <span class="warning">@Class</span> = <span class="string">"40057"</span>
+                                        
+                                        <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                                        {
+                                                <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.                
+</span>                                                        <span class="comment"># $2 = ifDescr - A textual string containing
+</span>                                                        <span class="comment">#        information about the interface. This
+</span>                                                        <span class="comment">#        string should include the name of the
+</span>                                                        <span class="comment">#        manufacturer, the product name and the
+</span>                                                        <span class="comment">#        version of the interface
+</span>                                                        <span class="comment">#        hardware/software.
+</span>                                                        <span class="comment"># $3 = ifType - The type of interface. Additional
+</span>                                                        <span class="comment">#        values for ifType are assigned by the
+</span>                                                        <span class="comment">#        Internet Assigned Numbers Authority
+</span>                                                        <span class="comment">#        (IANA), through updating the syntax of the
+</span>                                                        <span class="comment">#        IANAifType textual convention.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$3</span>, <span class="string">"^.*[A-Za-z].*$"</span>))
+                                                        {
+                                                                <span class="type">$MIBFileNotNull</span> = 1
+                                                        }
+                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>                
+                                                        <span class="type">$ifDescr</span> = <span class="type">$2</span>
+                                                        <span class="type">$ifType</span> = <span class="function-name">lookup</span>(<span class="type">$3</span>, IANAifType) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifDescr</span>,<span class="type">$ifType</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifDescr"</span>, <span class="type">$ifDescr</span>, <span class="string">"ifType"</span>, <span class="type">$ifType</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                        
+                                                <span class="keyword">default</span>:
+                                        }
+                                }
+                                <span class="keyword">else</span>
+                                {
+                                        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is an SNMPv2 generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                        
+                                        <span class="warning">@Agent</span> = <span class="string">"Generic-IETF-SNMPv2-MIB"</span>
+                                        
+                                        <span class="keyword">switch</span> (<span class="type">$generic-trap</span>)
+                                        {
+                                                <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.                
+</span>                                                        <span class="comment"># $2 = ifAdminStatus - The desired state of the
+</span>                                                        <span class="comment">#        interface.  The testing(3) state indicates
+</span>                                                        <span class="comment">#        that no operational packets can be passed.
+</span>                                                        <span class="comment"># $3 = ifOperStatus - The current operational state
+</span>                                                        <span class="comment">#        of the interface. The testing(3) state
+</span>                                                        <span class="comment">#        indicates that no operational packets can
+</span>                                                        <span class="comment">#        be passed.
+</span>                                                        <span class="comment">#
+</span>                                                        <span class="comment"># Optional:
+</span>                                                        <span class="comment">#
+</span>                                                        <span class="comment"># $4 = ifName - The textual name of the interface.
+</span>                                                        <span class="comment">#        The value of this object should be the
+</span>                                                        <span class="comment">#        name of the interface as assigned by the
+</span>                                                        <span class="comment">#        local device and should be suitable for
+</span>                                                        <span class="comment">#        use in commands entered at the device's
+</span>                                                        <span class="comment">#        `console'. This might be a text name, such
+</span>                                                        <span class="comment">#        as `le0' or a simple port number, such as
+</span>                                                        <span class="comment">#        `1', depending on the interface naming
+</span>                                                        <span class="comment">#        syntax of the device. If several entries
+</span>                                                        <span class="comment">#        in the ifTable together represent a single
+</span>                                                        <span class="comment">#        interface as named by the device, then
+</span>                                                        <span class="comment">#        each will have the same value of ifName.
+</span>                                                        <span class="comment">#        Note that for an agent which responds to
+</span>                                                        <span class="comment">#        SNMP queries concerning an interface on
+</span>                                                        <span class="comment">#        some other (proxied) device, then the
+</span>                                                        <span class="comment">#        value of ifName for such an interface is
+</span>                                                        <span class="comment">#        the proxied device's local name for it. If
+</span>                                                        <span class="comment">#        there is no local name, or this object is
+</span>                                                        <span class="comment">#        otherwise not applicable, then this object
+</span>                                                        <span class="comment">#        contains a zero-length string.
+</span>                                                        <span class="comment">#
+</span>                                                        <span class="comment"># Or:
+</span>                                                        <span class="comment">#
+</span>                                                        <span class="comment"># $4 = ifDescr - A textual string containing
+</span>                                                        <span class="comment">#        information about the interface. This
+</span>                                                        <span class="comment">#        string should include the name of the
+</span>                                                        <span class="comment">#        manufacturer, the product name and the
+</span>                                                        <span class="comment">#        version of the interface
+</span>                                                        <span class="comment">#        hardware/software.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$2</span>, <span class="string">"^.*[A-Za-z].*$"</span>)||<span class="function-name">regmatch</span>(<span class="type">$3</span>, <span class="string">"^.*[A-Za-z].*$"</span>))
+                                                        {
+                                                                <span class="type">$MIBFileNotNull</span> = 1
+                                                        }
+                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID4</span>, <span class="string">"1.3.6.1.2.1.31.1.1.1.1"</span>))
+                                                        {
+                                                                <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                                <span class="type">$ifAdminStatus</span> = <span class="function-name">lookup</span>(<span class="type">$2</span>, ifAdminStatus) + <span class="string">" ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                                <span class="type">$ifOperStatus</span> = <span class="function-name">lookup</span> (<span class="type">$3</span>, ifOperStatus) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                                <span class="type">$ifName</span> = <span class="type">$4</span>
+                                                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                        <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifAdminStatus</span>,<span class="type">$ifOperStatus</span>,<span class="type">$ifName</span>)
+                                                                }
+                                                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifAdminStatus"</span>, <span class="type">$ifAdminStatus</span>, <span class="string">"ifOperStatus"</span>, <span class="type">$ifOperStatus</span>,
+                                                                <span class="string">"ifName"</span>, <span class="type">$ifName</span>)
+                                                                
+                                                                <span class="keyword">switch</span>(<span class="type">$2</span>)
+                                                                {
+                                                                        <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### Down
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Administratively  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminDown"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### Testing - in some test mode
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Testing  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminTesting"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">default</span>:
+                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminUp"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 4
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                                }
+                                                        }
+                                                        <span class="keyword">else</span> <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID4</span>, <span class="string">"1.3.6.1.2.1.2.2.1.2"</span>))
+                                                        {
+                                                                <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                                <span class="type">$ifAdminStatus</span> = <span class="function-name">lookup</span>(<span class="type">$2</span>, ifAdminStatus) + <span class="string">" ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                                <span class="type">$ifOperStatus</span> = <span class="function-name">lookup</span> (<span class="type">$3</span>, ifOperStatus) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                                <span class="type">$ifDescr</span> = <span class="type">$4</span>
+                                                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                        <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifAdminStatus</span>,<span class="type">$ifOperStatus</span>,<span class="type">$ifDescr</span>)
+                                                                }
+                                                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifAdminStatus"</span>, <span class="type">$ifAdminStatus</span>, <span class="string">"ifOperStatus"</span>, <span class="type">$ifOperStatus</span>,
+                                                                <span class="string">"ifDescr"</span>, <span class="type">$ifDescr</span>)
+                                                                
+                                                                <span class="keyword">switch</span>(<span class="type">$2</span>)
+                                                                {
+                                                                        <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### Down
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Administratively  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminDown"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### Testing - in some test mode
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Testing  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminTesting"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">default</span>:
+                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( "</span> + <span class="type">$4</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminUp"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 4
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                                }
+                                                        }
+                                                        <span class="keyword">else</span>
+                                                        {
+                                                                <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                                <span class="type">$ifAdminStatus</span> = <span class="function-name">lookup</span>(<span class="type">$2</span>, ifAdminStatus) + <span class="string">" ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                                <span class="type">$ifOperStatus</span> = <span class="function-name">lookup</span> (<span class="type">$3</span>, ifOperStatus) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                        <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifAdminStatus</span>,<span class="type">$ifOperStatus</span>)
+                                                                }
+                                                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifAdminStatus"</span>, <span class="type">$ifAdminStatus</span>, <span class="string">"ifOperStatus"</span>, <span class="type">$ifOperStatus</span>)
+                                                                
+                                                                <span class="keyword">switch</span>(<span class="type">$2</span>)
+                                                                {
+                                                                        <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### Down
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Administratively  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminDown"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### Testing - in some test mode
+</span>                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Testing  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminTesting"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 2
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                        <span class="keyword">default</span>:
+                                                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                                
+                                                                                <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminUp"</span>
+                                                                                <span class="type">$DEFAULT_Severity</span> = 4
+                                                                                <span class="type">$DEFAULT_Type</span> = 1
+                                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                                }
+                                                        }
+                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$generic-trap</span>, <span class="string">"3"</span>))
+                                                        {
+                                                                <span class="type">$DEFAULT_Severity</span> = 1
+                                                                <span class="type">$DEFAULT_Type</span> = 2
+                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                        }
+                                                        
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$2</span> + <span class="string">" "</span> + <span class="type">$3</span>
+                                                        
+                                                <span class="keyword">case</span> <span class="string">"5"</span>: <span class="comment">### egpNeighborLoss
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = egpNeighAddr - The IP address of this
+</span>                                                        <span class="comment">#        entry's EGP neighbor.
+</span>                                                        <span class="comment">###########
+</span>                                                        
+                                                        <span class="type">$egpNeighAddr</span> = <span class="type">$1</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$egpNeighAddr</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"egpNeighAddr"</span>, <span class="type">$egpNeighAddr</span>)
+                                                        
+                                                        <span class="warning">@AlertKey</span> = <span class="type">$1</span>
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( Neighbor: "</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$1</span>
+                                                        
+                                                <span class="keyword">default</span>:
+                                        }
+                                }
+                                
+                        <span class="keyword">case</span> <span class="string">".1.3.6.1.2.1.11"</span>: <span class="comment">### RFC1215
+</span>                                
+                                <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) Event is an RFC1215 generic trap. &gt;&gt;&gt;&gt;&gt;"</span>)
+                                
+                                <span class="warning">@Agent</span> = <span class="string">"Generic-IETF-RFC1215"</span>
+                                
+                                <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                                {
+                                        <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                
+                                                <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID2</span>, <span class="string">"1.3.6.1.2.1.2.2.1.7"</span>))
+                                                {
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.                
+</span>                                                        <span class="comment"># $2 = ifAdminStatus - The desired state of the
+</span>                                                        <span class="comment">#        interface.  The testing(3) state indicates
+</span>                                                        <span class="comment">#        that no operational packets can be passed.
+</span>                                                        <span class="comment"># $3 = ifOperStatus - The current operational state
+</span>                                                        <span class="comment">#        of the interface. The testing(3) state
+</span>                                                        <span class="comment">#        indicates that no operational packets can
+</span>                                                        <span class="comment">#        be passed.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">regmatch</span>(<span class="type">$2</span>, <span class="string">"^.*[A-Za-z].*$"</span>)||<span class="function-name">regmatch</span>(<span class="type">$3</span>, <span class="string">"^.*[A-Za-z].*$"</span>))
+                                                        {
+                                                                <span class="type">$MIBFileNotNull</span> = 1
+                                                        }
+                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                        <span class="type">$ifAdminStatus</span> = <span class="function-name">lookup</span>(<span class="type">$2</span>, ifAdminStatus) + <span class="string">" ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                        <span class="type">$ifOperStatus</span> = <span class="function-name">lookup</span> (<span class="type">$3</span>, ifOperStatus) + <span class="string">" ( "</span> + <span class="type">$3</span> + <span class="string">" )"</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifAdminStatus</span>,<span class="type">$ifOperStatus</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifAdminStatus"</span>, <span class="type">$ifAdminStatus</span>, <span class="string">"ifOperStatus"</span>, <span class="type">$ifOperStatus</span>)
+                                                        
+                                                        <span class="keyword">switch</span>(<span class="type">$2</span>)
+                                                        {
+                                                                <span class="keyword">case</span> <span class="string">"2"</span>: <span class="comment">### Down
+</span>                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Administratively  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminDown"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 2
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                <span class="keyword">case</span> <span class="string">"3"</span>: <span class="comment">### Testing - in some test mode
+</span>                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">", Testing  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminTesting"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 2
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+
+                                                                <span class="keyword">default</span>:
+                                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                                        
+                                                                        <span class="type">$SEV_KEY</span> = <span class="type">$OS_EventId</span> + <span class="string">"_adminUp"</span>
+                                                                        <span class="type">$DEFAULT_Severity</span> = 4
+                                                                        <span class="type">$DEFAULT_Type</span> = 1
+                                                                        <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                        }
+                                                        
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$generic-trap</span>, <span class="string">"3"</span>))
+                                                        {
+                                                                <span class="type">$DEFAULT_Severity</span> = 1
+                                                                <span class="type">$DEFAULT_Type</span> = 2
+                                                                <span class="type">$DEFAULT_ExpireTime</span> = 0
+                                                        }
+                                                        
+                                                        <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$2</span> + <span class="string">" "</span> + <span class="type">$3</span>
+                                                }
+                                                <span class="keyword">else</span> <span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="type">$OID2</span>, <span class="string">"1.3.6.1.2.1.2.2.1.2"</span>))
+                                                {
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.
+</span>                                                        <span class="comment"># $2 = ifDescr - A textual string containing
+</span>                                                        <span class="comment">#        information about the interface. This
+</span>                                                        <span class="comment">#        string should include the name of the
+</span>                                                        <span class="comment">#        manufacturer, the product name and the
+</span>                                                        <span class="comment">#        version of the interface
+</span>                                                        <span class="comment">#        hardware/software.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                        <span class="type">$ifDescr</span> = <span class="type">$2</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>,<span class="type">$ifDescr</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>, <span class="string">"ifDescr"</span>, <span class="type">$ifDescr</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( "</span> + <span class="type">$2</span> + <span class="string">" )"</span>
+                                                }
+                                                <span class="keyword">else</span>
+                                                {
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                }
+                                                
+                                        <span class="keyword">case</span> <span class="string">"5"</span>:
+                                                
+                                                <span class="comment">##########
+</span>                                                <span class="comment"># $1 = egpNeighAddr - The IP address of this entry's
+</span>                                                <span class="comment">#        EGP neighbor.
+</span>                                                <span class="comment">###########
+</span>                                                
+                                                <span class="type">$egpNeighAddr</span> = <span class="type">$1</span>
+                                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                        <span class="function-name">details</span>(<span class="type">$egpNeighAddr</span>)
+                                                }
+                                                <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"egpNeighAddr"</span>, <span class="type">$egpNeighAddr</span>)
+                                                
+                                                <span class="warning">@AlertKey</span> = <span class="type">$1</span>
+                                                <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( Neighbor: "</span> + <span class="type">$1</span> + <span class="string">" )"</span>
+                                                <span class="warning">@Identifier</span> = <span class="warning">@Identifier</span> + <span class="string">" "</span> + <span class="type">$1</span>
+                                                
+                                        <span class="keyword">default</span>:
+                                }
+                                
+                        <span class="keyword">default</span>:
+                                
+                                <span class="comment">##########
+</span>                                <span class="comment"># First comes a dummy enterprise to start the if/else chain
+</span>                                <span class="comment">##########
+</span>
+                                <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$enterprise</span>, <span class="string">""</span>))
+                                {
+                                        <span class="warning">@Summary</span> = <span class="string">"Dummy Enterprise! If you matched here you have problems! (see details)"</span>
+                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                <span class="function-name">details</span>(<span class="type">$</span>*)
+                                        }
+                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="type">$</span>*)
+                                }
+
+                                <span class="comment">###############################################################
+</span>                                <span class="comment"># Enter "Enterprise Specific Generic Trap" includes below
+</span>                                <span class="comment"># with the following syntax:
+</span>                                <span class="comment">#
+</span>                                <span class="comment"># include "&lt;$NCHOME&gt;/etc/rules/include-snmptrap/generic/
+</span>                                <span class="comment"># &lt;rulesfile&gt;.include.rules"
+</span>                                <span class="comment">###############################################################
+</span>                                
+                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/generic/cisco.generic.include.snmptrap.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/generic/foundry.generic.include.snmptrap.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/generic/huawei.generic.include.snmptrap.rules"
+</span>                                <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/generic/juniper.generic.include.snmptrap.rules"
+</span>                                
+                                <span class="comment">###############################################################
+</span>                                <span class="comment"># End of "Enterprise Specific Generic Trap" rules file includes
+</span>                                <span class="comment">###############################################################
+</span>                                
+                                <span class="keyword">else</span> <span class="comment">### Handle Unknown Enterprises as SNMPv1 Generic Traps
+</span>                                {
+                                        <span class="warning">@Agent</span> = <span class="string">"Generic-Unknown"</span>
+                                        
+                                        <span class="keyword">switch</span>(<span class="type">$generic-trap</span>)
+                                        {
+                                                <span class="keyword">case</span> <span class="string">"2"</span>|<span class="string">"3"</span>: <span class="comment">### linkDown, linkUp
+</span>                                                        
+                                                        <span class="comment">##########
+</span>                                                        <span class="comment"># $1 = ifIndex - A unique value for each interface.
+</span>                                                        <span class="comment">#        Its value ranges between 1 and the value
+</span>                                                        <span class="comment">#        of ifNumber. The value for each interface
+</span>                                                        <span class="comment">#        must remain constant at least from one
+</span>                                                        <span class="comment">#        re-initialization of the entity's network
+</span>                                                        <span class="comment">#        management system to the next
+</span>                                                        <span class="comment">#        re-initialization.
+</span>                                                        <span class="comment">##########
+</span>                                                        
+                                                        <span class="type">$ifIndex</span> = <span class="type">$1</span>
+                                                        <span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$OPTION_EnableDetails</span>, <span class="string">"1"</span>)) {
+                                                                <span class="function-name">details</span>(<span class="type">$ifIndex</span>)
+                                                        }
+                                                        <span class="warning">@ExtendedAttr</span> = <span class="function-name">nvp_add</span>(<span class="warning">@ExtendedAttr</span>, <span class="string">"ifIndex"</span>, <span class="type">$ifIndex</span>)
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( ifEntry."</span> + <span class="type">$1</span> + <span class="string">" )  ( Enterprise: "</span> + <span class="type">$enterprise</span> + <span class="string">" )"</span>
+                                                        
+                                                <span class="keyword">default</span>:
+                                                        
+                                                        <span class="warning">@Summary</span> = <span class="warning">@Summary</span> + <span class="string">"  ( Enterprise: "</span> + <span class="type">$enterprise</span> + <span class="string">" )"</span>
+                                        }   
+                                }
+                }
+                
+                <span class="comment">##########
+</span>                <span class="comment"># Handle Severity via Lookup.
+</span>                <span class="comment">##########
+</span>                
+                <span class="keyword">if</span>(<span class="function-name">exists</span>(<span class="type">$SEV_KEY</span>))
+                {
+                        [<span class="type">$OS_Severity</span>,<span class="type">$OS_Type</span>,<span class="type">$OS_ExpireTime</span>] = <span class="function-name">lookup</span>(<span class="type">$SEV_KEY</span>, snmptrap_sev)
+                }
+                <span class="keyword">else</span>
+                {
+                        [<span class="type">$OS_Severity</span>,<span class="type">$OS_Type</span>,<span class="type">$OS_ExpireTime</span>] = <span class="function-name">lookup</span>(<span class="type">$OS_EventId</span>, snmptrap_sev)
+                }
+                <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-common/AssignSev.include.common.rules"</span>
+                
+                <span class="comment">##########
+</span>                <span class="comment"># End of Severity via Lookup.
+</span>                <span class="comment">##########
+</span>        }
+}
+
+<span class="comment">##########
+# Enter "Advanced" and "User" includes.
+##########
+</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/snmptrap.adv.include.rules"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/snmptrap.user.include.rules"</span>
+
+<span class="comment">##########
+# End of "Advanced" and "User" includes.
+##########
+</span>
+<span class="comment">##########
+# Warn about improperly set QuietOutput or MIBFile properties.
+##########
+</span>
+<span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$NoQuietOutput</span>, <span class="string">"1"</span>))
+{
+        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) WARNING: QuietOutput NOT SET!!! &gt;&gt;&gt;&gt;&gt;"</span>)
+        
+        <span class="warning">@Summary</span> = <span class="string">"[QuietOutput NOT SET!!!] "</span> + <span class="warning">@Summary</span>
+}
+
+<span class="keyword">if</span>(<span class="function-name">match</span>(<span class="type">$MIBFileNotNull</span>, <span class="string">"1"</span>))
+{
+        <span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; (snmptrap.rules) WARNING: MIBFile NOT NULL!!! &gt;&gt;&gt;&gt;&gt;"</span>)
+        
+        <span class="warning">@Summary</span> = <span class="string">"[MIBFile NOT NULL!!!] "</span> + <span class="warning">@Summary</span>
+}
+
+<span class="comment">##########
+# End of Warn about improperly set properties.
+##########
+</span>
+<span class="comment">##########
+# The following include statement is required by Netcool's advanced correlation
+# logic.
+##########
+</span>
+<span class="keyword">if</span>(<span class="function-name">nmatch</span>(<span class="warning">@Agent</span>, <span class="string">"Cisco-IOS"</span>) || <span class="function-name">nmatch</span>(<span class="warning">@Agent</span>, <span class="string">"Juniper-JUNOS"</span>))
+{
+        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-syslog/CorrScore.include.syslog.rules"</span>
+        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-syslog/PreClass.include.syslog.rules"</span>
+}
+<span class="keyword">else</span>
+{
+        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/CorrScore.include.snmptrap.rules"</span>
+        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/acmepacket/acmepacket-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/adtran/adtran-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/adva/adva-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/alliedtelesyn/alliedtelesyn-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ascend/ascend-preclass.include.snmptrap.rules"
+</span>        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/ATMF/ATMF-preclass.include.snmptrap.rules"</span>
+        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/bridgewater/bridgewater-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/brocade/brocade-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/chipcom/chipcom-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ciena/ciena-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/cisco/cisco-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/eaton/eaton-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/empirix/empirix-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/enterasys/enterasys-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/exfo/exfo-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/fore/fore-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/foundry/foundry-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/fujitsu/fujitsu-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/hatteras/hatteras-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/huawei/huawei-preclass.include.snmptrap.rules"
+</span>        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IANA/IANA-preclass.include.snmptrap.rules"</span> 
+        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ibm/ibm-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/IEEE/IEEE-preclass.include.snmptrap.rules"
+</span>        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/IETF/IETF-preclass.include.snmptrap.rules"</span>
+        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/infinera/infinera-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/juniper/juniper-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/keymile/keymile-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/latitude/latitude-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/mrv/mrv-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/netscout/netscout-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/networkharmoni/networkharmoni-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/nortel/nortel-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/ntntech/ntntech-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/rapidcity/rapidcity-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/riverbed/riverbed-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/sandvine/sandvine-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/sap/sap-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/shasta/shasta-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/stratacom/stratacom-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/synoptics/synoptics-preclass.include.snmptrap.rules"
+</span>        <span class="comment">#include "$NC_RULES_HOME/include-snmptrap/trilliant/trilliant-preclass.include.snmptrap.rules"
+</span>        <span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-snmptrap/AssignCorrectAdvValue.include.snmptrap.rules"</span>
+}
+
+<span class="comment">##########
+# End of advanced correlation include files.
+##########
+</span>
+<span class="comment">##########
+# Enter "compatibility" includes below with the following syntax:
+#
+# include "&lt;$NCHOME&gt;/etc/rules/include-compat/&lt;rulesfile&gt;.include.compat.rules"
+##########
+</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-compat/omnibus36.include.compat.rules"</span>
+<span class="keyword">include</span> <span class="string">"$NC_RULES_HOME/include-compat/AdvCorr36.include.compat.rules"</span>
+
+<span class="comment">##########
+# End of "compatibility" includes.
+##########
+</span>
+<span class="function-name">log</span>(DEBUG, <span class="string">"&lt;&lt;&lt;&lt;&lt; Leaving... snmptrap.rules &gt;&gt;&gt;&gt;&gt;"</span>)
+</pre>
+  </body>
+</html>

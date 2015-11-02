@@ -7,3 +7,7 @@ My solution is to write my own major mode for the rules files and reformat them.
 Want to see how it looks like? Check the [htmlized](http://emacswiki.org/emacs/htmlize.el) rules file below:
 
 [The htmlized probe rules file](http://htmlpreview.github.io/?https://github.com/songlining/Netcool-Emacs-Modes/blob/master/snmptrap.rules.html)
+
+Want to try it out?  Copy this into your local Emacs library directory (~/.emacs.d/lisp in my case) and add a line:
+
+(require 'rules-mode)
